@@ -1,0 +1,33 @@
+#!/bin/sh
+# First-boot WiFi bring-up for the VNPT GW240H.
+#
+# OpenWrt's generic config generator (lib/wifi/mac80211.uc) emits the radios
+# enabled but leaves each auto-generated AP interface 'disabled', unless the
+# board supplies WLAN defaults in /etc/board.json. This board has none, so a
+# freshly flashed unit comes up with the radios present but the APs off - and
+# the only machine available to configure it is WiFi-only, so there would be
+# no way to reach LuCI.
+#
+# Detect/refresh the radio list and switch on every generated AP interface as
+# an open network (SSID "OpenWrt", the mac80211.uc default). This is a
+# uci-defaults script: it runs once (from /etc/init.d/boot, after kmodloader
+# has loaded the wifi modules and /sbin/wifi config has run) and is deleted
+# afterwards. If the radios cannot be detected yet it exits non-zero so the
+# script is kept and retried on the next boot.
+
+/sbin/wifi config 2>/dev/null
+
+found=0
+for s in $(uci -q show wireless | grep -o '^wireless\.default_radio[0-9]*'); do
+	found=1
+	uci -q set "$s.disabled='0'"
+done
+
+[ "$found" = 1 ] || exit 1
+
+uci -q commit wireless
+
+# bring the APs up now (netifd may already have given up on the disabled ifaces)
+/sbin/wifi up >/dev/null 2>&1 &
+
+exit 0

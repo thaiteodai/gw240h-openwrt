@@ -1,0 +1,156 @@
+================================================================================
+GW240H Bootloader Prompt Capture Tips
+================================================================================
+
+The Econet bootbase prompt appears very briefly after power-on. Here's how to catch it:
+
+================================================================================
+TIMING IS CRITICAL
+================================================================================
+
+1. POWER ON SEQUENCE:
+   - Connect UART cable (TX→RX, RX→TX, GND→GND) BEFORE powering on
+   - Power on the GW240H
+   - Immediately hold the RESET button down
+   - Keep holding for 3-5 seconds after seeing any LED activity
+   - The prompt should appear within 1-2 seconds of power-on
+
+================================================================================
+COMMON MISTAKES
+================================================================================
+
+1. "I pressed reset too late"
+   - Solution: Start holding Reset BEFORE power-on, not after
+   - The bootloader checks GPIO state early in the boot process
+
+2. "The prompt disappears too fast"
+   - Solution: Use screen or minicom with no timeout
+   - Don't wait for anything between power-on and sending 'C'
+
+3. "I type characters but nothing happens"
+   - Solution: The bootloader sends 'C' first (xmodem start)
+   - You must receive 'C' before typing anything
+   - Don't send anything until you see 'C'
+
+================================================================================
+TERMINAL SETTINGS
+================================================================================
+
+BAUD RATE: 115200 8N1 (default for GW240H)
+
+RECOMMENDED TERMINAL PROGRAMS:
+
+1. SCREEN (usually pre-installed):
+   screen /dev/ttyUSB0 115200
+
+2. MINICOM (install if needed: sudo apt-get install minicom):
+   minicom -s
+   - Change "Serial port setup" to: 115200 8N1
+   - Change "Startup and login" to: "No"
+   - Save setup as default
+
+3. PUTTY (Windows/macOS/Linux):
+   - Baud rate: 115200
+   - Connection type: Serial
+   - No flow control
+
+4. GENUINO (cross-platform, recommended):
+   genie -b 115200 -t /dev/ttyUSB0
+
+================================================================================
+SCRIPT-BASED FLASHING (RECOMMENDED)
+================================================================================
+
+Rather than trying to catch the prompt manually, use the Python script:
+It automatically waits for the prompt and handles the timing.
+
+python3 /home/qyoo/gw240h-openwrt/tools/flash_gw240h.py \
+    --port /dev/ttyUSB0 \
+    --initramfs /home/qyoo/gw240h-openwrt/images/openwrt-econet-en751221-vnpt_gw240h-initramfs-kernel.bin \
+    --hybrid /home/qyoo/gw240h-openwrt/images/openwrt-gw240h-hybrid.trx
+
+The script:
+- Waits for the bootloader prompt (with timeout)
+- Sends xmodem 'C' character automatically
+- Handles packet retransmissions
+- Jumps to rescue kernel when done
+- No manual timing required!
+
+================================================================================
+IF STILL CAN'T CATCH THE PROMPT
+================================================================================
+
+1. TRY DIFFERENT SERIAL PORT SPEEDS:
+   The bootloader might use a different baud rate:
+   - 57600
+   - 38400
+   - 9600
+   
+   In the flash script, try:
+   python3 flash_gw240h.py --port /dev/ttyUSB0 --baud 57600 ...
+
+2. TRY DIFFERENT RESET TIMING:
+   - Power on, hold reset for 1 second, release, hold again
+   - Power on, hold reset continuously from before power-on
+   - Press reset repeatedly during boot
+
+3. CHECK HARDWARE CONNECTIONS:
+   - TX → RX (cross over)
+   - RX → TX (cross over)  
+   - GND → GND (common ground essential!)
+   - Verify with multimeter if unsure
+   - Short GND to RTS/CTS if using hardware flow control
+
+4. TRY THE HTTP METHOD INSTEAD:
+   If UART is too difficult, the bootloader also supports HTTP:
+   - Power on GW240H
+   - Connect computer to LAN port
+   - Set IP: 192.168.1.100
+   - Browse to: http://192.168.1.1
+   - Upload: openwrt-econet-en751221-vnpt_gw240h-squashfs-sysupgrade.bin
+   
+   This is the recommended method if UART keeps failing!
+
+================================================================================
+SERIAL TERMINAL QUICK START (Linux)
+================================================================================
+
+# 1. Connect UART and identify port
+ls /dev/ttyUSB*
+
+# 2. Start screen with correct settings
+screen /dev/ttyUSB0 115200
+
+# 3. Power on GW240H while HOLDING RESET button
+
+# 4. You should see something like:
+#   Econet bootbase 1.02
+#   Press any key to stop auto-boot: 0
+#   >
+
+# 5. The Python script will automatically send 'C' for xmodem
+
+# 6. After flash, the device reboots into OpenWrt
+
+================================================================================
+SERIAL TERMINAL QUICK START (macOS)
+================================================================================
+
+# 1. Install screen: brew install screen
+# 2. Start: screen /dev/tty.usbserial 115200
+# 3. Power on GW240H + hold Reset
+# 4. Same steps as Linux
+
+================================================================================
+WINDOWS TERMINAL QUICK START
+================================================================================
+
+# 1. Putty: https://www.putty.org/
+# 3. Connection: Session → Type: Serial → Speed: 115200
+# 4. Connection: Data → Serial line: COM3 (check Device Manager)
+# 5. Power on GW240H + hold Reset
+# 6. Or use: https://github.com/git-terminal/terminal
+
+================================================================================
+</TIPS
+cat /home/qyoo/gw240h-openwrt/bootloader_tips.txt

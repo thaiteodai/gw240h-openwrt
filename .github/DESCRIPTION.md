@@ -1,0 +1,1 @@
+Custom OpenWrt for VNPT GW240H (Econet EN751221, 256MB RAM, 128MB SPI NAND, MT7615D dual-band). NAND boot, writable UBI overlay, LuCI, dual-band AP, UART flashing. GPON/VoIP unsupported. Note: this unit's bootbase boots slot 0x1e80000, so the GW040H partition map must not be reused.

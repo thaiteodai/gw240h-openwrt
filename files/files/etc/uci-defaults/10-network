@@ -1,0 +1,27 @@
+#!/bin/sh
+# Network configuration for VNPT GW240H
+# 4x GbE LAN ports + WAN (PON/GPON)
+
+. /lib/functions/uci-defaults.sh
+
+board_config_update
+
+board=$(board_name)
+
+case "$board" in
+vnpt,gw240h)
+	# Configure the 4 LAN ports as a bridge
+	ucidef_set_interface_lan "lan1 lan2 lan3 lan4"
+
+	# WAN interface - will be configured via PON/GPON
+	# The PON interface is handled by the xpon driver
+	ucidef_set_interface_wan "pon"
+
+	# Set up VLAN if needed for PON
+	# For GPON, typically no VLAN tagging on LAN side
+	;;
+esac
+
+board_config_flush
+
+exit 0

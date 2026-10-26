@@ -1,0 +1,145 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/dts-v1/;
+
+#include "en751221.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "VNPT GW240H";
+	compatible = "vnpt,gw240h", "econet,en751221";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	/* Reserve staging buffer for xmodem flashing (same as GW040H) */
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		staging@5000000 {
+			reg = <0x05000000 0x01000000>;
+			no-map;
+		};
+	};
+
+	chosen {
+		stdout-path = "/serial@1fbf0000:115200";
+		bootargs = "console=ttyS0,115200 ubi.mtd=rootfs_ubi";
+	};
+};
+
+&nand {
+	status = "okay";
+	econet,bmt;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "bootloader";
+			reg = <0x0 0x40000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "romfile";
+			reg = <0x40000 0x40000>;
+			read-only;
+		};
+
+		partition@80000 {
+			label = "tclinux";
+			reg = <0x80000 0xc00000>;
+			econet,enable-remap;
+		};
+
+		/* The OEM bootbase on this unit has "boot flag = 1" and therefore
+		 * boots the image in the slave slot at 0x1e80000 (a 30 MiB slot
+		 * in the stock layout: 0x1e80000 .. 0x3c80000). Keep the whole
+		 * 2RDH container there so the bootbase finds a valid kernel and
+		 * a matching kernel+rootfs JAMCRC. Writing it anywhere else
+		 * results in "Undefined Exception happen" at boot. */
+		partition@1e80000 {
+			label = "tclinux_alt";
+			reg = <0x1e80000 0xc00000>;
+			econet,enable-remap;
+		};
+
+		/* 34 MiB UBI window placed immediately after the slave slot
+		 * (which ends at 0x2a80000): the squashfs "rootfs" volume plus
+		 * a rootfs_data overlay which auto-sizes to the remaining
+		 * ~27 MiB. It must not overlap the slave slot, otherwise the
+		 * bootbase image (and its CRC) is destroyed. */
+		partition@2a80000 {
+			label = "rootfs_ubi";
+			reg = <0x2a80000 0x2200000>;
+		};
+
+		partition@4c80000 {
+			label = "yaffs";
+			reg = <0x4c80000 0x1200000>;
+		};
+
+		partition@5e80000 {
+			label = "safedata";
+			reg = <0x5e80000 0xa00000>;
+		};
+
+		partition@7520000 {
+			label = "reservearea";
+			reg = <0x7520000 0xc0000>;
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				/* Factory MT7615 EEPROM (macro "0x7615" in the
+				 * low endian chip-id field at 0x000, MAC at
+				 * 0x004). One MT7615 serves both bands.
+				 * mt7615_eeprom_load() requests
+				 * MT7615_EEPROM_FULL_SIZE (0x4da8) bytes via
+				 * nvmem; a shorter cell makes the read fail
+				 * with -EINVAL and mt76_eeprom_init() then
+				 * quietly continues with a zeroed EEPROM.
+				 * Only the first 0x400 bytes (the MT7615 base
+				 * EEPROM) are populated in flash - the
+				 * DCOC/TXDPD tail stays 0xff, which is fine
+				 * because MT_EE_CALDATA_FLASH (0x052) is 0x00
+				 * here, so those tables are never read. */
+				eeprom_mt7615: eeprom@20000 {
+					reg = <0x20000 0x4da8>;
+				};
+			};
+		};
+	};
+};
+
+&gmac0 {
+	status = "okay";
+};
+
+/* The WiFi module is a single MediaTek MT7615D on PCIe controller 1
+ * (1fb83000). It enumerates as 14c3:7615 and provides both bands from
+ * the calibration data stored in "reservearea". PCIe controller 0
+ * (1fb81000) reports a link timeout - nothing is attached there. */
+&pcie1 {
+	status = "okay";
+};
+
+&slot1 {
+	wifi@0,0 {
+		compatible = "mediatek,mt76";
+		reg = <0x0000 0 0 0 0>;
+		nvmem-cells = <&eeprom_mt7615>;
+		nvmem-cell-names = "eeprom";
+	};
+};
+
+/* No gpio-leds / gpio-keys nodes yet: board.d/01_leds only creates phantom
+ * LED config (the sysfs names it references do not exist) and the GPIO pins
+ * for the case LEDs and buttons have not been probed. See README. */

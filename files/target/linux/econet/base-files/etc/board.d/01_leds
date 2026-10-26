@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# NOTE: this board has no gpio-leds node yet, so every ucidef_set_led_* call
+# below only writes /etc/config/system entries pointing at sysfs LED names that
+# do not exist (power, internet, pon, lan1..4, ...). The only real LEDs are
+# mt76-phy0 / mt76-phy1 registered by the mt7615e driver. Kept as a starting
+# point for the GPIO pin mapping — see the Known issues section in README.md.
+
+. /lib/functions/uci-defaults.sh
+
+board_config_update
+
+board=$(board_name)
+
+case "$board" in
+vnpt,gw240h)
+	# Power LED
+	ucidef_set_led_default "power" "POWER" "power" "1"
+
+	# Internet LED - follows WAN traffic
+	ucidef_set_led_netdev "internet" "INTERNET" "internet" "wan"
+
+	# PON LED - follows PON interface
+	ucidef_set_led_netdev "pon" "PON" "pon" "pon"
+
+	# PON trying - blink timer
+	ucidef_set_led_timer "pon_trying" "PON Trying" "pon:trying" "500" "500"
+
+	# WPS LED - blink timer
+	ucidef_set_led_timer "wps" "WPS" "wps" "100" "100"
+
+	# VoIP LED
+	ucidef_set_led_default "voip1" "VOIP1" "voip1" "0"
+
+	# PHY TX Power LED
+	ucidef_set_led_default "phy_tx_power" "PHY TX Power" "phy-tx-power" "1"
+
+	# LAN port LEDs
+	ucidef_set_led_netdev "lan1" "LAN1" "lan1" "lan1"
+	ucidef_set_led_netdev "lan2" "LAN2" "lan2" "lan2"
+	ucidef_set_led_netdev "lan3" "LAN3" "lan3" "lan3"
+	ucidef_set_led_netdev "lan4" "LAN4" "lan4" "lan4"
+
+	# WiFi LEDs (using mt76 triggers)
+	ucidef_set_led_wlan "wlan2g" "2.4G" "mt76-phy0" "phy0tpt"
+	ucidef_set_led_wlan "wlan5g" "5G" "mt76-phy1" "phy1tpt"
+	;;
+esac
+
+board_config_flush
+
+exit 0

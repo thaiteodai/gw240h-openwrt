@@ -1,0 +1,19 @@
+# Build/runtime noise
+build.log
+*.log
+*.tmp
+*.bak
+__pycache__/
+*.pyc
+
+# Derived/intermediate build artifacts — rebuild with tools/build_hybrid_gw240h.py
+images/openwrt-econet-en751221-vnpt_gw240h-squashfs-tclinux.trx
+images/openwrt-econet-en751221-vnpt_gw240h-squashfs-sysupgrade.bin
+
+# Device-specific dumps and unrelated experiments
+files/firmware/
+files/target/linux/mediatek/
+
+# Old build helpers (23.05 target, absolute paths, superseded by build.sh)
+Dockerfile
+build-in-docker.sh
